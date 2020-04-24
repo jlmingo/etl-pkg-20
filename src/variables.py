@@ -1,4 +1,4 @@
-path_query = r'c:\Users\E353952\Desktop\ETL\Bypass\Bypass_202002 - Sheet2.csv'
+path_query = r'c:\Users\E353952\Desktop\ETL\Bypass\Plano de Contas EDP.csv'
 path_sap = r'C:\Users\E353952\Desktop\ETL\SAP\2020\SAP Source'
 path_sap_csv = r'c:\Users\E353952\Desktop\ETL\SAP\2020\SAP Source CSV'
 path_packages = r'c:\Users\E353952\Desktop\ETL\Packages\2020'

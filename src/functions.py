@@ -136,8 +136,6 @@ def ytd_to_month(df_YTD_current_month, df_YTD_previous_month):
     df_final_current_month = df_final_current_month.groupby(['RU', 'AC', 'FL', 'AU', 'T1', 'Scope'], as_index=False).sum()
     return df_final_current_month
 
-'''returns a dataframe used to map Financial Statements accounts in other tables
-'''
 
 '''main transforming function for sap dataframes
 '''
@@ -147,16 +145,15 @@ def transform_sap(df, df_join, path_scopes, path_trading_partner, scope_equivale
     selection = ['Amount in local currency', 'Text', 'Trading partner', 'G/L Account',
     'Profit Center', 'Amount in doc. curr.', 'Order',
     'Year/month', 'Company Code', 'WBS element', 'Purchasing Document', 'Material',
-    'General ledger amount']
+    'General ledger amount', "Assignment", "Flow Type", "Document Date", "Document Number", 
+    "Document type", "User Name", 'Account', "Aggregate Cost Center", "Asset",
+    "Customer", "Vendor", "Document currency", "Document Header Text", "Entry Date", "Local Currency",
+    "Posting Date", "Reference", "Reversed with"]
     df = df[selection]
-    print(f"{df['Trading partner'].unique()}")
-    
+
     #drop rows where date contains month 13
     index_drop = df[df["Year/month"].str.contains("/13")].index
-    df = df.drop(index_drop)
-
-    #rename
-    # df = df.rename(columns={"Company Code": "RU&AC"})        
+    df = df.drop(index_drop)      
 
     #format date column
     df.loc[:,"Year/month"] = pd.to_datetime(df["Year/month"])
@@ -171,10 +168,6 @@ def transform_sap(df, df_join, path_scopes, path_trading_partner, scope_equivale
 
     #add AU column
     df["AU"] = "0LIA01"
-
-    #lookup AC column
-    # df["RU&AC"] = df["Company Code"].astype("object") + df["G/L Account"].astype("object")
-    # print(f"shape before merge: {df.shape}")
     
     #join_df to lookup AC
     df = df.merge(df_join, on="G/L Account", how="left")
@@ -189,6 +182,7 @@ def transform_sap(df, df_join, path_scopes, path_trading_partner, scope_equivale
         df_codes = df_codes_gen(path_scopes, month)
         df_month = df[df["Year/month"].dt.month == month]
         df_month = codes_columns_adding(df_month, df_codes)
+        df_month = add_t1_cons_col(df_month, df_codes)
         df_list_month.append(df_month)
     df = pd.concat(df_list_month)
 
@@ -197,7 +191,7 @@ def transform_sap(df, df_join, path_scopes, path_trading_partner, scope_equivale
     # df_trading_partner = df_trading_partner.rename(columns={"OLD CODE": "Trading partner", "SIM R CODE": "Reporting unit (code)"})
     # df_trading_partner = df_trading_partner.drop_duplicates(subset="Trading partner", keep="last")
     # df = df.merge(df_trading_partner[["Reporting unit (code)", "Trading partner"]], on="Trading partner", how="left")
-    df.loc[:,"Trading partner"] = df["Trading partner"].astype("str")
+    # df.loc[:,"Trading partner"] = df["Trading partner"].astype("str")
     df.loc[:, "Trading partner"] = df["Trading partner"].replace("nan", "S9999", regex=True)
     df["Trading partner"].fillna("S9999", inplace = True) 
     print(f"{df['Trading partner'].unique()}")
@@ -226,6 +220,15 @@ def df_query_gen(path_query):
     df_join = df_join.rename(columns={"SAP_Local": "G/L Account", "SAP_CONS": "AC"}) 
     df_join = df_join[["G/L Account", "AC"]]
     return df_join
+
+def add_t1_cons_col(df, df_codes):
+    df_codes = df_codes.rename(columns={"Reporting unit (code)": "Trading partner", "Revised method (Closing)": "T1 Revised method (Closing)"})
+    df_codes = df_codes.drop_duplicates(subset ="Trading partner", keep = "first")
+    merging_columns = ["Trading partner", 'T1 Revised method (Closing)']
+    df = df.merge(df_codes[merging_columns], on="Trading partner", how="left")
+    df["T1 Revised method (Closing)"].fillna("External", inplace = True) 
+    return df
+
 
 def codes_columns_adding(df, df_codes):
     df_codes = df_codes.rename(columns={"Reporting unit (code)": "Company Code"})
@@ -260,6 +263,6 @@ def xlsx_to_csv(input_path, output_path):
         if file_name+"csv" not in files_output:
             df = pd.read_excel(os.path.join(input_path, file))
             file_name = file_name+"csv"
-            df.to_csv(file_name)
+            df.to_csv(os.path.join(output_path, file_name))
             print(str(file_name)+" created")
 
