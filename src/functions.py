@@ -172,6 +172,7 @@ def transform_sap(df, df_join, path_scopes, path_trading_partner, scope_equivale
     #join_df to lookup AC
     df = df.merge(df_join, on="G/L Account", how="left")
     print(f"shape after merge: {df.shape}")
+    print(f"Codes before transformation: {df['Company Code'].unique()}")
 
     #find new columns
     months_in_file = list(pd.to_datetime(df["Year/month"]).dt.month.unique())
@@ -185,7 +186,6 @@ def transform_sap(df, df_join, path_scopes, path_trading_partner, scope_equivale
         df_month = add_t1_cons_col(df_month, df_codes)
         df_list_month.append(df_month)
     df = pd.concat(df_list_month)
-
     #find new society code for Trading Partner
     # df_trading_partner = pd.read_excel(path_trading_partner, sheet_name="ZPMIG_ZCVBUND", dtype={"OLD CODE": str, "SIM R CODE": str})
     # df_trading_partner = df_trading_partner.rename(columns={"OLD CODE": "Trading partner", "SIM R CODE": "Reporting unit (code)"})
@@ -194,7 +194,7 @@ def transform_sap(df, df_join, path_scopes, path_trading_partner, scope_equivale
     # df.loc[:,"Trading partner"] = df["Trading partner"].astype("str")
     df.loc[:, "Trading partner"] = df["Trading partner"].replace("nan", "S9999", regex=True)
     df["Trading partner"].fillna("S9999", inplace = True) 
-    print(f"{df['Trading partner'].unique()}")
+    # print(f"{df['Trading partner'].unique()}")
     # df.loc[:, "Reporting unit (code)_y"] = df["Reporting unit (code)_y"].replace("-", "S9999", regex=True)
     # df.drop("Trading partner", axis=1, inplace=True)
     df["FL"] = "F10"
@@ -207,7 +207,7 @@ def transform_sap(df, df_join, path_scopes, path_trading_partner, scope_equivale
     
     #correct scopes
     df.loc[:,"Scope"] = df["Scope"].map(lambda x: scope_equivalences[x] if x in list(scope_equivalences.keys()) else "OTHER")
-
+    print(f"Codes after transformation: {df['RU'].unique()}")
     return df
 
 def df_codes_gen(path_scopes, month):
