@@ -69,10 +69,11 @@ def main():
             df = pd.read_csv(os.path.join(path_sap_csv, file), dtype={"G/L Account": "str", 
                                                                     "Trading partner": "str", "Company Code": "str", "Document Date": "str", 
                                                                     "Document Number": "str", "Document type": "str", "Account": "str", 
-                                                                    "User Name": "str", 'Account': "str", "Aggregate Cost Center": "str", "Asset": "str",
+                                                                    "User Name": "str", "Aggregate Cost Center": "str", "Asset": "str",
                                                                     "Customer": "str", "Vendor": "str", "Document currency": "str", "Document Header Text": "str", 
                                                                     "Entry Date": "str", "Local Currency": "str",
-                                                                    "Posting Date": "str", "Reference": "str", "Reversed with": "str"})
+                                                                    "Posting Date": "str", "Reference": "str", "Reversed with": "str", "Order": "string", "Item": "str", "Profit Center": "str"})
+            print(df["Order"].unique())
             df.loc[df["Trading partner"].isnull() == False,"Trading partner"] = df["Trading partner"].str.replace(".0", "", regex=False)
             df = transform_sap(df, df_join, path_scopes, path_trading_partner, scope_equivalences, file, max_months)
             list_df_sap.append(df)

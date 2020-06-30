@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-
+from pandas.tseries.offsets import MonthEnd
 ##ETL pipeline functions for packages
 
 '''read package ytd for a certain month
@@ -142,22 +142,33 @@ def ytd_to_month(df_YTD_current_month, df_YTD_previous_month):
 def transform_sap(df, df_join, path_scopes, path_trading_partner, scope_equivalences, file_name, max_months):
     
     #columns selection
+    if "Item" not in df.columns:
+        df["Item"] = ""
+    
+    other_columns = ['Aggregate Cost Center', 'Account', 'Profit Center', 'Asset', 'Flow Type', 'Vendor', 'Customer']
+
+    for column in other_columns:
+        if column not in df.columns:
+            df[column] = ""
+
     selection = ['Amount in local currency', 'Text', 'Trading partner', 'G/L Account',
     'Profit Center', 'Amount in doc. curr.', 'Order',
     'Year/month', 'Company Code', 'WBS element', 'Purchasing Document', 'Material',
     'General ledger amount', "Assignment", "Flow Type", "Document Date", "Document Number", 
     "Document type", "User Name", 'Account', "Aggregate Cost Center", "Asset",
     "Customer", "Vendor", "Document currency", "Document Header Text", "Entry Date", "Local Currency",
-    "Posting Date", "Reference", "Reversed with"]
+    "Posting Date", "Reference", "Reversed with", "Item"]
     df = df[selection]
 
     #drop rows where date contains month 13
-    index_drop = df[df["Year/month"].str.contains("/13")].index
-    df = df.drop(index_drop)      
+    # index_drop = df[df["Year/month"].str.contains("/13")].index
+    # df = df.drop(index_drop)      
 
-    #format date column
-    df.loc[:,"Year/month"] = pd.to_datetime(df["Year/month"])
-
+    #format date column. NOTE: except has the format used in Greece SAP file sent on 28/04/2020
+    try:
+        df.loc[:,"Posting Date"] = pd.to_datetime(df["Posting Date"], format='%Y/%m/%d')
+    except:
+        df.loc[:,"Posting Date"] = pd.to_datetime(df["Posting Date"], format='%d/%m/%Y')
     #correct numbers
     numeric_fields = ['Amount in local currency', 'Amount in doc. curr.', 'General ledger amount']
     df.loc[:, numeric_fields] = df[numeric_fields].replace(",", "", regex=True)
@@ -175,13 +186,14 @@ def transform_sap(df, df_join, path_scopes, path_trading_partner, scope_equivale
     print(f"Codes before transformation: {df['Company Code'].unique()}")
 
     #find new columns
-    months_in_file = list(pd.to_datetime(df["Year/month"]).dt.month.unique())
+    months_in_file = list(pd.to_datetime(df["Posting Date"]).dt.month.unique())
     months_in_file = sorted(months_in_file, key=None, reverse=False)
     max_months_list = [x for x in range(1,max_months+1)]
     df_list_month = []
+    print(months_in_file, max_months)
     for month in range(1, min(months_in_file[-1], max_months)+1):
         df_codes = df_codes_gen(path_scopes, month)
-        df_month = df[df["Year/month"].dt.month == month]
+        df_month = df[df["Posting Date"].dt.month == month]
         df_month = codes_columns_adding(df_month, df_codes)
         df_month = add_t1_cons_col(df_month, df_codes)
         df_list_month.append(df_month)
@@ -198,11 +210,11 @@ def transform_sap(df, df_join, path_scopes, path_trading_partner, scope_equivale
     # df.loc[:, "Reporting unit (code)_y"] = df["Reporting unit (code)_y"].replace("-", "S9999", regex=True)
     # df.drop("Trading partner", axis=1, inplace=True)
     df["FL"] = "F10"
-    df = df.rename(columns={"Year/month": "PE",
+    df = df.rename(columns={"Posting Date": "PE",
                             "Trading partner": "T1",
                             "Company Code": "RU",
                             "Amount in local currency": "P_AMOUNT"})
-    df = df.astype({'G/L Account': 'str', "T1": "str"})
+    df = df.astype({'G/L Account': 'str', "T1": "str", "Order": "str"})
     print(f"current shape: {df.shape}")
     
     #correct scopes
@@ -261,7 +273,7 @@ def xlsx_to_csv(input_path, output_path):
     for file in files_input:
         file_name = str(file[:-4])
         if file_name+"csv" not in files_output:
-            df = pd.read_excel(os.path.join(input_path, file))
+            df = pd.read_excel(os.path.join(input_path, file), dtype={"Order": "str", "Item": "str", "Profit Center": "str", "Company Code": "str"})
             file_name = file_name+"csv"
             df.to_csv(os.path.join(output_path, file_name))
             print(str(file_name)+" created")
